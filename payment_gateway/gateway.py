@@ -1,0 +1,113 @@
+"""Demo payment gateway (port 9000), a separate service from the booking site.
+Run: python gateway.py  (standard library only)"""
+import hmac, json, secrets, threading, urllib.request
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+MERCHANTS = {"mk_demo_bookmyshow": b"whsec_demo_change_me"}  # merchant key -> webhook secret
+sessions = {}
+
+PAGE = """<!doctype html><meta charset=utf-8><title>SecurePay</title>
+<style>body{font-family:system-ui;background:#f3f4f6;margin:0;padding:24px}
+.card{background:#fff;max-width:400px;margin:auto;padding:24px;border-radius:12px;box-shadow:0 2px 12px #0002}
+h2{margin:0 0 4px}.amt{font-size:32px;font-weight:700;margin:12px 0}input{width:100%;box-sizing:border-box;
+padding:10px;margin:6px 0 12px;border:1px solid #ccc;border-radius:8px;font-size:15px}
+button{width:100%;padding:12px;border:0;border-radius:8px;font-size:16px;cursor:pointer}
+.pay{background:#16a34a;color:#fff}.cancel{background:none;color:#666;margin-top:6px}
+#msg{margin-top:12px;font-weight:600;text-align:center}small{color:#777}</style>
+<div class=card><h2>SecurePay</h2><small>Paying to BookMyShow Demo</small>
+<div>__DESC__</div><div class=amt>&#8377;__AMT__</div>
+<form id=f><input id=card placeholder="Card number (16 digits)" maxlength=19 required>
+<input id=exp placeholder="MM/YY" maxlength=5 required><input id=cvv placeholder="CVV" maxlength=3 type=password required>
+<button class=pay id=pay>Pay &#8377;__AMT__</button></form>
+<button class=cancel id=cancel>Cancel payment</button><div id=msg></div>
+<small>Demo: any 16 digits works. A card ending in 0000 is declined.</small></div>
+<script>
+const sid="__SID__", msg=document.getElementById("msg");
+async function finish(url, body){
+  document.getElementById("pay").disabled=true;
+  const r=await fetch(url,{method:"POST",body:JSON.stringify(body||{})}), d=await r.json();
+  msg.textContent=d.message; msg.style.color=d.status==="paid"?"#16a34a":"#dc2626";
+  if(window.opener) window.opener.postMessage({type:"payment",status:d.status},"*");
+  if(d.status!=="retry") setTimeout(()=>window.close(),1800); else document.getElementById("pay").disabled=false;
+}
+document.getElementById("f").onsubmit=e=>{e.preventDefault();
+  finish("/api/pay/"+sid,{card:card.value.replace(/\\s/g,""),exp:exp.value,cvv:cvv.value});};
+document.getElementById("cancel").onclick=()=>finish("/api/cancel/"+sid);
+</script>"""
+
+
+def notify_merchant(s, status):
+    """Tell the merchant's server the result. Signed so it cannot be faked."""
+    body = json.dumps({"order_id": s["order_id"], "status": status}).encode()
+    sig = hmac.new(MERCHANTS[s["key"]], body, "sha256").hexdigest()
+    req = urllib.request.Request(s["webhook_url"], body, {"Content-Type": "application/json", "X-Signature": sig})
+    try:
+        urllib.request.urlopen(req, timeout=5)
+    except Exception as e:
+        print("webhook failed:", e)
+
+
+class H(BaseHTTPRequestHandler):
+    def log_message(self, *a): pass
+
+    def send(self, code, obj, ctype="application/json"):
+        data = obj if isinstance(obj, bytes) else json.dumps(obj).encode()
+        self.send_response(code)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def do_GET(self):
+        if self.path.startswith("/pay/"):
+            s = sessions.get(self.path.rsplit("/", 1)[1])
+            if not s or s["status"] != "created":
+                return self.send(410, b"This payment link is invalid or already used", "text/plain")
+            html = (PAGE.replace("__SID__", self.path.rsplit("/", 1)[1]).replace("__AMT__", str(s["amount"]))
+                    .replace("__DESC__", s["description"].replace("<", "")))
+            return self.send(200, html.encode(), "text/html")
+        self.send(404, {"error": "Not found"})
+
+    def do_POST(self):
+        d = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+        p = self.path
+        if p == "/api/sessions":  # merchant server creates a payment session
+            key = self.headers.get("X-Merchant-Key")
+            if key not in MERCHANTS:
+                return self.send(401, {"error": "Unknown merchant"})
+            sid = secrets.token_urlsafe(12)
+            sessions[sid] = {"key": key, "order_id": d["order_id"], "amount": int(d["amount"]),
+                             "description": d.get("description", ""), "webhook_url": d["webhook_url"], "status": "created"}
+            return self.send(200, {"payment_url": f"http://localhost:9000/pay/{sid}"})
+        if p == "/api/refunds":  # merchant asks us to return money for a paid order
+            if self.headers.get("X-Merchant-Key") not in MERCHANTS:
+                return self.send(401, {"error": "Unknown merchant"})
+            for s in sessions.values():
+                if s["order_id"] == d.get("order_id") and s["status"] == "paid":
+                    s["status"] = "refunded"
+                    print(f"REFUND Rs {s['amount']} for {s['order_id']}")
+                    return self.send(200, {"refund_id": "RF" + secrets.token_hex(4).upper(), "amount": s["amount"]})
+            return self.send(404, {"error": "No paid payment found for this order"})
+        sid = p.rsplit("/", 1)[-1]
+        s = sessions.get(sid)
+        if not s or s["status"] != "created":
+            return self.send(410, {"status": "failed", "message": "Payment link is no longer valid"})
+        if p.startswith("/api/pay/"):
+            card = str(d.get("card", ""))
+            if not (card.isdigit() and len(card) == 16 and len(str(d.get("cvv", ""))) == 3):
+                return self.send(200, {"status": "retry", "message": "Please check your card details"})
+            ok = not card.endswith("0000")
+            s["status"] = "paid" if ok else "failed"
+            threading.Thread(target=notify_merchant, args=(s, s["status"])).start()
+            return self.send(200, {"status": s["status"], "message": "Payment successful! Closing..." if ok
+                                   else "Card declined. Closing..."})
+        if p.startswith("/api/cancel/"):
+            s["status"] = "failed"
+            threading.Thread(target=notify_merchant, args=(s, "failed")).start()
+            return self.send(200, {"status": "failed", "message": "Payment cancelled. Closing..."})
+        self.send(404, {"error": "Not found"})
+
+
+if __name__ == "__main__":
+    print("Payment gateway: http://localhost:9000")
+    ThreadingHTTPServer(("", 9000), H).serve_forever()

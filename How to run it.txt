@@ -1,0 +1,22 @@
+Quick reminder for next time
+Open a terminal in payment_gateway and run python -u gateway.py.
+Open a terminal in booking_server and run python -u server.py.
+Keep both black windows open while you use the app.
+Go to http://localhost:8000.
+
+Restarting the server signs everyone out and clears any seat holds. Bookings and accounts stay saved in bms.db.
+
+Bookmyshow credentials:-
+
+Sunny
+Sunny123
+
+{If credentials dont work then sign-up again. Can use the same credentials}
+
+WHAT CAN BE DONE TOO:-
+
+Book a single seat, then try multiple seats at once.
+Switch between shows to see that each has its own seat map.
+Open My bookings to view and print a ticket.
+Cancel a booking and check that the refund appears in the gateway window.
+

@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BookMyShow Demo</title>
+<style>
+:root{--bg:#f5f5f7;--card:#fff;--text:#222;--muted:#777;--bd:#e3e3e8;--seat:#fff;--tipbg:#222}
+[data-theme=dark]{--bg:#14141a;--card:#1f1f27;--text:#eee;--muted:#9a9aa8;--bd:#34343f;--seat:#1f1f27;--tipbg:#eee}
+*{box-sizing:border-box}body{font-family:system-ui,sans-serif;margin:0;background:var(--bg);color:var(--text)}
+header{background:#c4242b;color:#fff;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+header b{cursor:pointer}header span{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+main{max-width:820px;margin:18px auto;padding:0 12px}.card{background:var(--card);border-radius:12px;padding:20px;box-shadow:0 1px 8px #0002;margin-bottom:14px}
+input,select,textarea,button{font-size:15px;padding:9px 11px;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--text);font-family:inherit}
+button{cursor:pointer;background:#c4242b;color:#fff;border:0}button.alt{background:var(--bd);color:var(--text)}button:disabled{opacity:.5;cursor:default}
+header button{background:#fff3;color:#fff;padding:6px 10px;font-size:13px}#q{padding:6px 10px;width:170px}
+#auth{max-width:340px;margin:60px auto}#auth input{width:100%;margin-bottom:10px}#err,.err{color:#e5484d;min-height:18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}.mv{cursor:pointer;margin:0}.mv:hover{outline:2px solid #c4242b}
+.muted,small{color:var(--muted)}.pill{display:inline-block;background:var(--bd);border-radius:20px;padding:2px 10px;font-size:12px;margin-right:6px}
+.quote{border-left:3px solid #c4242b;padding:4px 12px;margin:8px 0;font-style:italic}.rv{border-top:1px solid var(--bd);padding:8px 0;font-size:14px}
+.shows{display:flex;flex-wrap:wrap;gap:10px}.shows button{text-align:left;background:var(--bd);color:var(--text)}
+.screen{background:linear-gradient(#bbb,#eee);height:10px;border-radius:50% 50% 0 0;margin:14px 40px 4px}.sc{text-align:center;font-size:12px;color:var(--muted);margin-bottom:12px}
+.row{display:flex;align-items:center;justify-content:center;gap:4px;margin:4px 0}.row b{width:18px;font-size:12px;color:var(--muted)}.gap{width:20px}
+.seat{width:28px;height:28px;border-radius:6px 6px 3px 3px;border:2px solid;background:var(--seat);font-size:9px;display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none}
+.c-Silver{border-color:#0ea5e9}.c-Gold{border-color:#f59e0b}.c-Premium{border-color:#8b5cf6}
+.seat.sel{background:#c4242b;border-color:#c4242b;color:#fff;font-weight:700}.seat.booked,.seat.held{background:#8d8d96;border-color:#8d8d96;cursor:not-allowed}
+#tip{position:fixed;background:var(--tipbg);color:var(--bg);padding:5px 9px;border-radius:6px;font-size:12px;pointer-events:none;display:none;z-index:50}
+.bar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:10px 0}.legend{font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-2px;border:2px solid}
+.modal{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;z-index:9}
+.modal>div{background:var(--card);border-radius:12px;padding:22px;max-width:430px;width:92%;text-align:center;max-height:90vh;overflow:auto}
+.btns{display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap}.hide{display:none!important}
+table.bd{width:100%;margin:10px 0;text-align:left;border-collapse:collapse}table.bd td{padding:3px 0}table.bd td+td{text-align:right}table.bd tr.t td{border-top:1px solid var(--bd);font-weight:700;padding-top:6px}
+.bi{text-align:left;border:1px solid var(--bd);border-radius:10px;padding:12px;margin:10px 0;font-size:14px}.bi .btns{justify-content:flex-start;margin-top:8px}.bi button{padding:6px 12px;font-size:13px}.cx{opacity:.6}
+#tixCard{border:2px dashed #c4242b;border-radius:12px;padding:18px;text-align:left}#tixCard h3{margin:0 0 8px;color:#c4242b}
+.code{font:700 22px monospace;letter-spacing:3px;text-align:center;margin-top:12px;padding:8px;background:var(--bg)}
+#cd{font:700 34px monospace;color:#c4242b}.adm table{width:100%;font-size:13px;border-collapse:collapse}.adm td,.adm th{padding:4px 6px;border-bottom:1px solid var(--bd);text-align:left}
+.adm input,.adm select{margin:3px 3px 3px 0;padding:6px}
+@media print{body *{visibility:hidden}#tixCard,#tixCard *{visibility:visible}#tixCard{position:fixed;left:20px;top:20px;width:380px}}
+</style></head><body>
+<header><b onclick="home()">BookMyShow Demo</b>
+ <span><input id="q" class="hide" placeholder="Search movies..." oninput="loadMovies()">
+ <button id="mb" class="hide" onclick="bookings()">My bookings</button><button id="ad" class="hide" onclick="openAdmin()">Admin</button>
+ <button id="tg" onclick="setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark')"></button>
+ <button id="lo" class="hide" onclick="logout()">Logout</button> <small id="who"></small></span></header>
+<main>
+ <div id="auth" class="card"><h3>Login to book</h3><input id="u" placeholder="Username"><input id="p" type="password" placeholder="Password (6+ chars)">
+  <div id="err"></div><button onclick="auth('login')">Login</button> <button class="alt" onclick="auth('signup')">Sign up</button></div>
+ <div id="v-movies" class="view hide"><div id="movieGrid" class="grid"></div></div>
+ <div id="v-movie" class="view hide card"></div>
+ <div id="v-seats" class="view hide card">
+  <button class="alt" onclick="openMovie(movieId)">&larr; Back</button><h3 id="sh" style="margin:10px 0 2px"></h3><small id="sh2"></small>
+  <div class="bar"><label><input type="checkbox" id="multi" onchange="toggleMulti()"> Select multiple seats</label>
+   <select id="menu" onchange="menuPick(this.value)"></select><button id="bookBtn" class="hide" onclick="openConfirm()"></button></div>
+  <div class="err" id="note"></div><div class="screen"></div><div class="sc">SCREEN THIS WAY</div><div id="map"></div>
+  <div class="bar legend" id="legend"></div></div>
+ <div id="v-admin" class="view hide card adm"></div>
+</main>
+<div id="tip"></div>
+<div class="modal" id="confirm"><div><h3>Confirm booking</h3><p id="cMsg"></p>
+ <div><input id="coupon" placeholder="Coupon code" style="width:150px"> <button class="alt" onclick="doQuote()">Apply</button></div>
+ <div id="qBox"></div><p class="err" id="cErr"></p>
+ <div class="btns"><button class="alt" onclick="closeModals()">Cancel</button><button onclick="confirmBook()">Yes, book &amp; pay</button></div></div></div>
+<div class="modal" id="wait"><div><h3>Waiting for payment</h3><p>Complete the payment in the payment window.</p>
+ <p class="muted">Your seats are held for</p><div id="cd">5:00</div>
+ <p><a id="reopen" href="#" target="payment">Payment window not showing? Click here</a></p></div></div>
+<div class="modal" id="done"><div><h3 id="dTitle"></h3><p id="dMsg"></p><div class="btns"><button onclick="closeModals()">OK</button></div></div></div>
+<div class="modal" id="bk"><div><h3>My bookings</h3><small>You can cancel until 2 hours before the show.</small><div id="bkList"></div>
+ <div class="btns"><button class="alt" onclick="closeModals()">Close</button></div></div></div>
+<div class="modal" id="tix" style="z-index:12"><div><div id="tixCard"></div><div class="btns"><button onclick="window.print()">Print ticket</button><button class="alt" onclick="$('tix').style.display='none'">Close</button></div></div></div>
+<script>
+let token=sessionStorage.token||"",me=sessionStorage.me||"",isAdmin=sessionStorage.adm==="1",movieId="",showId="",seatData=null,sel=[],order=null,timer,cd,live,deadline=0,myb=[];
+const $=id=>document.getElementById(id),tip=$("tip"),R=n=>"\u20b9"+n;
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function setTheme(t){document.documentElement.dataset.theme=t;try{localStorage.theme=t}catch(e){}$("tg").textContent=t==="dark"?"Light mode":"Dark mode";}
+setTheme((()=>{try{return localStorage.theme}catch(e){}})()||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"));  // saved choice, else the device setting
+async function api(path,body){const h={"Content-Type":"application/json"};if(token)h.Authorization="Bearer "+token;
+ const r=await fetch(path,{method:body?"POST":"GET",headers:h,body:body?JSON.stringify(body):undefined});const d=await r.json();
+ if(r.status===401&&token&&!path.includes("log"))logout();
+ if(!r.ok)throw new Error(d.error||"Something went wrong");return d;}
+function go(v){document.querySelectorAll(".view").forEach(e=>e.classList.add("hide"));$("v-"+v).classList.remove("hide");$("q").classList.toggle("hide",v!=="movies");
+ clearInterval(live);if(v==="seats")live=setInterval(refreshSeats,4000);}   // live seat updates every 4 seconds
+async function auth(kind){try{const d=await api("/api/"+kind,{username:$("u").value,password:$("p").value});
+ token=sessionStorage.token=d.token;me=sessionStorage.me=d.username;isAdmin=d.is_admin;sessionStorage.adm=d.is_admin?"1":"0";start();}catch(e){$("err").textContent=e.message;}}
+function start(){$("auth").classList.add("hide");["mb","lo"].forEach(i=>$(i).classList.remove("hide"));$("ad").classList.toggle("hide",!isAdmin);$("who").textContent=me;home();}
+function home(){if(!token)return;go("movies");loadMovies();}
+async function loadMovies(){const l=await api("/api/movies?q="+encodeURIComponent($("q").value));
+ $("movieGrid").innerHTML=l.map(m=>`<div class="card mv" onclick="openMovie('${m.id}')"><b>${esc(m.title)}</b><br><small>${m.minutes?m.minutes+" min":""}</small><br>
+  <span class="pill">${m.critic?"Critics "+m.critic+"/5":"Not rated yet"}</span>${m.rating?`<span class="pill">Users ${m.rating}/5</span>`:""}<br><small>${m.released}</small></div>`).join("")||"<p>No movies found.</p>";}
+async function openMovie(id){movieId=id;const m=await api("/api/movies/"+id);go("movie");
+ $("v-movie").innerHTML=`<button class="alt" onclick="home()">&larr; All movies</button><h2>${esc(m.title)}</h2>
+  ${m.minutes?`<span class="pill">${m.minutes} min</span>`:""}<span class="pill">${m.critic?"Critics "+m.critic+"/5":"Not rated yet"}</span><p>${esc(m.description)}</p><p><b>Cast:</b> ${esc(m.cast)}</p>
+  ${m.quotes.map(q=>`<div class="quote">&ldquo;${esc(q.quote)}&rdquo; <small>- ${esc(q.critic)}</small></div>`).join("")}
+  <h3>Book a show</h3><div class="shows">${m.shows.map(s=>`<button onclick="openShow('${s.id}')"><b>${esc(s.theatre)}</b><br><small>${s.time} &middot; ${s.layout}</small></button>`).join("")||"<p>No upcoming shows.</p>"}</div>
+  <h3>Reviews</h3>${m.reviews_hidden?'<p class="muted">Reviews open from the second day of release.</p>':
+  (m.reviews.map(r=>`<div class="rv"><b>${esc(r.user)}</b> ${"&#9733;".repeat(r.rating)}${"&#9734;".repeat(5-r.rating)}<br>${esc(r.text)}</div>`).join("")||'<p class="muted">No reviews yet.</p>')}
+  ${m.can_review?`<div class="rv"><b>Write a review</b><br><select id="rr">${[5,4,3,2,1].map(n=>`<option>${n}</option>`).join("")}</select> stars<br>
+  <textarea id="rt" rows="2" style="width:100%;margin:6px 0" maxlength="500" placeholder="Your review"></textarea><button onclick="sendReview()">Submit</button> <span class="err" id="re"></span></div>`:""}`;}
+async function sendReview(){try{await api("/api/review",{movie_id:movieId,rating:+$("rr").value,text:$("rt").value});openMovie(movieId);}catch(e){$("re").textContent=e.message;}}
+async function openShow(id){showId=id;sel=[];$("multi").checked=false;$("note").textContent="";await refreshSeats();go("seats");}
+async function refreshSeats(){try{seatData=await api("/api/seats?show="+showId);}catch(e){return;}
+ const free=new Set(seatData.rows.flatMap(r=>r.seats.filter(s=>s.status==="free").map(s=>s.id)));const gone=sel.filter(x=>!free.has(x));
+ if(gone.length){sel=sel.filter(x=>free.has(x));$("note").textContent="Seat "+gone.join(", ")+" was just taken by someone else.";}render();}
+const seatById=id=>seatData.rows.flatMap(r=>r.seats).find(s=>s.id===id),total=()=>sel.reduce((a,id)=>a+seatById(id).price,0);
+function render(){const d=seatData;$("sh").textContent=d.title;$("sh2").textContent=`${d.theatre} | ${d.time} | ${d.layout}`;let h="";
+ for(const r of d.rows){h+=`<div class="row"><b>${r.row}</b>`;r.seats.forEach((s,i)=>{const on=sel.includes(s.id),c=on?"sel":s.status!=="free"?s.status:"c-"+s.cat;
+  h+=`<div class="seat ${c}" data-id="${s.id}">${on?s.id:""}</div>`+(i+1===r.seats.length/2?'<span class="gap"></span>':"");});h+="</div>";}
+ $("map").innerHTML=h;const all=d.rows.flatMap(r=>r.seats);
+ $("menu").innerHTML='<option value="">Choose a seat from menu...</option>'+all.filter(s=>s.status==="free"&&!sel.includes(s.id)).map(s=>`<option value="${s.id}">${s.id} - ${s.cat} ${R(s.price)}</option>`).join("");
+ const pr={};all.forEach(s=>pr[s.cat]=s.price);const col={Silver:"#0ea5e9",Gold:"#f59e0b",Premium:"#8b5cf6"};
+ $("legend").innerHTML=Object.keys(col).filter(k=>pr[k]).map(k=>`<span><i style="border-color:${col[k]}"></i>${k} ${R(pr[k])}</span> `).join("")+'<span><i style="background:#c4242b;border-color:#c4242b"></i>Selected</span> <span><i style="background:#8d8d96;border-color:#8d8d96"></i>Unavailable</span>';
+ const b=$("bookBtn");b.classList.toggle("hide",!($("multi").checked&&sel.length));b.textContent=`Book ${sel.length} seat(s) - ${R(total())}`;}
+$("map").addEventListener("click",e=>{const el=e.target.closest(".seat");if(el&&!el.classList.contains("booked")&&!el.classList.contains("held"))pick(el.dataset.id);});
+$("map").addEventListener("mousemove",e=>{const el=e.target.closest(".seat");
+ if(!el||el.classList.contains("booked")||el.classList.contains("held")){tip.style.display="none";return;}   // nothing shown for unavailable seats
+ const s=seatById(el.dataset.id);tip.textContent=`Seat ${s.id} - ${s.cat} ${R(s.price)}`;tip.style.display="block";tip.style.left=e.clientX+12+"px";tip.style.top=e.clientY+14+"px";});
+$("map").addEventListener("mouseleave",()=>tip.style.display="none");
+function menuPick(id){if(id)pick(id);}
+function pick(id){$("note").textContent="";if($("multi").checked){sel=sel.includes(id)?sel.filter(x=>x!==id):[...sel,id];render();}else{sel=[id];render();openConfirm();}}
+function toggleMulti(){sel=[];render();}
+function openConfirm(){if(!sel.length)return;$("coupon").value="";$("cErr").textContent="";
+ $("cMsg").innerHTML=`<b>${esc(seatData.title)}</b><br>${esc(seatData.theatre)}, ${seatData.time}<br>Seats: <b>${sel.join(", ")}</b>`;$("confirm").style.display="flex";doQuote(true);}
+async function doQuote(quiet){try{const q=await api("/api/quote",{show:showId,seats:sel,coupon:$("coupon").value});$("cErr").textContent="";
+ $("qBox").innerHTML=`<table class="bd"><tr><td>Tickets</td><td>${R(q.subtotal)}</td></tr>${q.discount?`<tr><td>Coupon ${q.coupon}</td><td>-${R(q.discount)}</td></tr>`:""}
+  <tr><td>GST (18%)</td><td>${R(q.gst)}</td></tr><tr class="t"><td>Total</td><td>${R(q.total)}</td></tr></table>`;}
+ catch(e){$("cErr").textContent=e.message;}}
+function closeModals(){["confirm","wait","done","bk","tix"].forEach(i=>$(i).style.display="none");}
+async function confirmBook(){try{order=await api("/api/hold",{show:showId,seats:sel,coupon:$("coupon").value});
+  window.open(order.payment_url,"payment","width=480,height=660");$("reopen").href=order.payment_url;closeModals();$("wait").style.display="flex";
+  deadline=Date.now()+order.expires_in*1000;clearInterval(cd);cd=setInterval(()=>{const s=Math.max(0,Math.round((deadline-Date.now())/1000));$("cd").textContent=Math.floor(s/60)+":"+String(s%60).padStart(2,"0");},500);
+  clearInterval(timer);timer=setInterval(poll,1500);}catch(e){$("cErr").textContent=e.message;refreshSeats();}}
+async function poll(){const o=await api("/api/orders/"+order.order_id);if(o.status==="pending")return;
+ clearInterval(timer);clearInterval(cd);closeModals();const ok=o.status==="paid";
+ $("dTitle").textContent=ok?"Booking confirmed!":o.status==="refund"?"Seats were lost":"Booking not completed";
+ $("dMsg").textContent=ok?`Order ${order.order_id}: seats ${o.seats.join(", ")} - paid ${R(o.total)}. See "My bookings" for your ticket.`
+  :o.status==="refund"?"Your hold expired and the seats were taken. You will be refunded.":"Payment failed, cancelled or timed out. Seats were released.";
+ $("done").style.display="flex";sel=[];refreshSeats();}
+window.addEventListener("message",e=>{if(e.data&&e.data.type==="payment"&&order)setTimeout(poll,500);});
+async function bookings(){myb=await api("/api/bookings");
+ $("bkList").innerHTML=myb.length?myb.map((b,i)=>`<div class="bi ${b.status==="booked"?"":"cx"}"><b>${esc(b.movie)}</b> - ${esc(b.theatre)}, ${b.time}<br>
+  Seats ${b.seats.join(", ")} | ${R(b.total)} | ${b.status==="booked"?"Confirmed":"Cancelled and refunded"}<br>Order ${b.order_id}
+  ${b.status==="booked"?`<div class="btns"><button onclick="ticket(${i})">View ticket</button>${b.can_cancel?`<button class="alt" onclick="cancelB(${i})">Cancel &amp; refund</button>`:`<button class="alt" disabled>Cancellation closed</button>`}</div>`:""}</div>`).join(""):"<p>No bookings yet.</p>";
+ $("bk").style.display="flex";}
+function ticket(i){const b=myb[i];$("tixCard").innerHTML=`<h3>E-TICKET</h3><b>${esc(b.movie)}</b><br>${esc(b.theatre)}<br>${b.time}<br><br>Seats: <b>${b.seats.join(", ")}</b><br>
+ Tickets ${R(b.subtotal)}${b.discount?` | Coupon -${R(b.discount)}`:""} | GST ${R(b.gst)}<br>Paid: <b>${R(b.total)}</b><br>Name: ${esc(me)}<div class="code">${b.order_id}</div>`;$("tix").style.display="flex";}
+async function cancelB(i){if(!confirm("Cancel this booking and get a full refund (including GST)?"))return;
+ try{const r=await api("/api/cancel",{order_id:myb[i].order_id});alert(`Cancelled. Refund of Rs ${r.amount} issued (ref ${r.refund_id}).`);bookings();}catch(e){alert(e.message);}}
+async function openAdmin(){const s=await api("/api/admin/stats");go("admin");
+ $("v-admin").innerHTML=`<button class="alt" onclick="home()">&larr; Back</button><h3>Admin dashboard</h3>
+  <p><span class="pill">Revenue ${R(s.revenue)}</span><span class="pill">Active orders ${s.orders}</span><span class="pill">Cancelled ${s.cancelled}</span></p>
+  <table><tr><th>Show</th><th>Theatre</th><th>Time</th><th>Layout</th><th>Sold</th><th>Revenue</th></tr>${s.shows.map(x=>`<tr><td>${esc(x.movie)}</td><td>${esc(x.theatre)}</td><td>${x.time}</td><td>${x.layout}</td><td>${x.sold}/${x.capacity}</td><td>${R(x.revenue)}</td></tr>`).join("")}</table>
+  <h4>Latest movies (TMDB)</h4><p class="muted">${s.tmdb.configured?esc(s.tmdb.message):"No API key found. Put your key in tmdb_key.txt next to server.py and restart the server."}</p>
+  ${s.tmdb.configured?'<button onclick="syncNow()">Sync now</button>':""}
+  <h4>Add a show</h4><select id="am">${s.movies.map(m=>`<option value="${m.id}">${esc(m.title)}</option>`).join("")}</select>
+  <input id="at" placeholder="Theatre name"><input id="ah" type="number" placeholder="Hours from now" style="width:140px">
+  <select id="al">${Object.entries(s.layouts).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select><button onclick="addShow()">Add show</button>
+  <h4>Coupons</h4><p>${s.coupons.map(c=>`<span class="pill">${esc(c.code)}: ${c.kind==="percent"?c.value+"% off":R(c.value)+" off"}</span>`).join("")}</p>
+  <input id="cc" placeholder="CODE" style="width:100px"><select id="ck"><option value="percent">percent</option><option value="flat">flat</option></select>
+  <input id="cv" type="number" placeholder="Value" style="width:90px"><button onclick="addCoupon()">Add coupon</button> <span class="err" id="ae"></span>`;}
+async function addShow(){try{await api("/api/admin/show",{movie_id:$("am").value,theatre:$("at").value,hours:$("ah").value,layout:$("al").value});openAdmin();}catch(e){$("ae").textContent=e.message;}}
+async function addCoupon(){try{await api("/api/admin/coupon",{code:$("cc").value,kind:$("ck").value,value:parseInt($("cv").value)});openAdmin();}catch(e){$("ae").textContent=e.message;}}
+async function syncNow(){try{await api("/api/admin/sync",{});$("ae").textContent="Sync started, refreshing in a few seconds...";setTimeout(openAdmin,4000);}catch(e){$("ae").textContent=e.message;}}
+async function logout(){try{await api("/api/logout",{});}catch(e){}token=me="";isAdmin=false;sessionStorage.clear();clearInterval(timer);clearInterval(cd);clearInterval(live);sel=[];closeModals();
+ document.querySelectorAll(".view").forEach(e=>e.classList.add("hide"));["mb","lo","ad","q"].forEach(i=>$(i).classList.add("hide"));
+ $("auth").classList.remove("hide");$("who").textContent="";$("u").value=$("p").value="";$("err").textContent="";}
+if(token)start();
+</script></body></html>
